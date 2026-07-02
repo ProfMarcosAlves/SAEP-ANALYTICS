@@ -1,5 +1,11 @@
 function getSelectedCourseConfig() {
-    return COURSE_CONFIG[getSavedCourseKey()] || null;
+    const courseConfig = COURSE_CONFIG[getSavedCourseKey()] || null;
+
+    if (courseConfig) {
+        repairObjectText(courseConfig);
+    }
+
+    return courseConfig;
 }
 
 function populateCourseSelector() {
@@ -17,7 +23,7 @@ function populateCourseSelector() {
         Object.entries(COURSE_CONFIG).forEach(([courseKey, courseConfig]) => {
             const optionElement = document.createElement('option');
             optionElement.value = courseKey;
-            optionElement.textContent = courseConfig.nome;
+            optionElement.textContent = repairMojibake(courseConfig.nome);
 
             if (courseKey === savedCourseKey) {
                 optionElement.selected = true;
@@ -42,7 +48,7 @@ function getCapacityDisplayName(capacityCode) {
         selectedCourseConfig.capacidades &&
         selectedCourseConfig.capacidades[capacityCode]
     ) {
-        return selectedCourseConfig.capacidades[capacityCode];
+        return repairMojibake(selectedCourseConfig.capacidades[capacityCode]);
     }
 
     return `Capacidade ${String(capacityCode || '').replace('C', '')}`;
@@ -56,7 +62,7 @@ function getCapacityPedagogicalGuidance(capacityCode) {
         selectedCourseConfig.diagnosticos &&
         selectedCourseConfig.diagnosticos[capacityCode]
     ) {
-        return selectedCourseConfig.diagnosticos[capacityCode];
+        return repairMojibake(selectedCourseConfig.diagnosticos[capacityCode]);
     }
 
     return 'Necessita reforço pedagógico direcionado nesta capacidade.';

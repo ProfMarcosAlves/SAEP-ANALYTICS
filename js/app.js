@@ -17,7 +17,7 @@ function updateCourseIndicator() {
 
     const courseConfig = getSelectedCourseConfig();
     if (courseConfig && courseConfig.nome) {
-        nameEl.textContent = courseConfig.nome;
+        nameEl.textContent = repairMojibake(courseConfig.nome);
         indicator.style.display = 'flex';
     } else {
         indicator.style.display = 'none';

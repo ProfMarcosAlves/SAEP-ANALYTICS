@@ -28,6 +28,8 @@ function clearStoredSpreadsheetData() {
 }
 
 function saveSpreadsheetDataToStorage() {
+    repairObjectText(ApplicationState.studentSummaries);
+    repairObjectText(ApplicationState.answerRecords);
     localStorage.setItem(STORAGE_KEYS.students, JSON.stringify(ApplicationState.studentSummaries));
     localStorage.setItem(STORAGE_KEYS.records, JSON.stringify(ApplicationState.answerRecords));
 }
@@ -38,6 +40,8 @@ function loadSpreadsheetDataFromStorage() {
             JSON.parse(localStorage.getItem(STORAGE_KEYS.students)) || [];
         ApplicationState.answerRecords =
             JSON.parse(localStorage.getItem(STORAGE_KEYS.records)) || [];
+        repairObjectText(ApplicationState.studentSummaries);
+        repairObjectText(ApplicationState.answerRecords);
     } catch (error) {
         console.warn('Dados locais inválidos foram limpos:', error);
         clearStoredSpreadsheetData();
@@ -46,6 +50,7 @@ function loadSpreadsheetDataFromStorage() {
     }
 }
 function saveImportedCourseConfig(courseConfigObject) {
+    repairObjectText(courseConfigObject);
     localStorage.setItem(STORAGE_KEYS.courseConfig, JSON.stringify(courseConfigObject));
 }
 

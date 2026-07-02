@@ -13,7 +13,7 @@ function renderGeneralKpis() {
 
     const approvedStudentsCount = ApplicationState.studentSummaries.filter((studentSummary) => {
         const saepLevel = studentSummary.nivelSAEP || getStudentSaepLevel(studentSummary);
-        return saepLevel === 'Adequado' || saepLevel === 'Avançado';
+        return repairMojibake(saepLevel) === 'Adequado' || repairMojibake(saepLevel) === 'Avançado';
     }).length;
 
     const performances = ApplicationState.studentSummaries.map(
@@ -119,6 +119,8 @@ function renderCapacityCards(classroomAnalysis) {
             `;
         })
         .join('');
+
+    container.innerHTML = repairMojibake(container.innerHTML);
 }
 
 function renderKnowledgeSummaryList(classroomAnalysis) {
@@ -199,7 +201,7 @@ function renderKnowledgeSummaryList(classroomAnalysis) {
             ${avisoHtml}
         </div>`;
 
-    container.innerHTML = `<div class="capacity-grid">${cardsHtml}${rodapeHtml}</div>`;
+    container.innerHTML = repairMojibake(`<div class="capacity-grid">${cardsHtml}${rodapeHtml}</div>`);
 }
 
 function renderClassroomHighlights(classroomAnalysis) {
@@ -211,7 +213,7 @@ function renderClassroomHighlights(classroomAnalysis) {
 
     const highlights = buildClassroomPedagogicalHighlights(classroomAnalysis);
 
-    container.innerHTML = `
+    container.innerHTML = repairMojibake(`
         <div class="pedagogical-highlight-wrapper">
             <div class="pedagogical-highlight-header">
                 <h3 class="pedagogical-highlight-title">${highlights.summaryTitle}</h3>
@@ -220,7 +222,7 @@ function renderClassroomHighlights(classroomAnalysis) {
                 ${highlights.summaryHtml}
             </div>
         </div>
-    `;
+    `);
 }
 
 function buildRankingTableHeader(sortedCapacityCodes) {
@@ -288,6 +290,8 @@ function renderRankingMatrix(classroomAnalysis) {
 
     tableHead.innerHTML = buildRankingTableHeader(classroomAnalysis.sortedCapacityCodes || []);
     tableBody.innerHTML = buildRankingTableRows(classroomAnalysis);
+    tableHead.innerHTML = repairMojibake(tableHead.innerHTML);
+    tableBody.innerHTML = repairMojibake(tableBody.innerHTML);
 }
 
 function initializeDashboardPage() {
