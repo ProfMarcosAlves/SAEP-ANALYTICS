@@ -18,6 +18,11 @@ function apply(theme) {
     localStorage.setItem(THEME_KEY, theme);
     const icon = document.querySelector('#themeToggleBtn i');
     if (icon) icon.className = theme === DARK ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+    const btn = document.getElementById('themeToggleBtn');
+    if (btn) {
+        btn.title = theme === DARK ? 'Usar tema claro' : 'Usar tema escuro';
+        btn.setAttribute('aria-label', btn.title);
+    }
 }
 
 function injectBtn() {
@@ -25,9 +30,11 @@ function injectBtn() {
     if (!nav || document.getElementById('themeToggleBtn')) return;
     const btn = document.createElement('button');
     btn.id = 'themeToggleBtn';
-    btn.className = 'upload-btn';
-    btn.style.cursor = 'pointer';
-    btn.innerHTML = `<i class="${saved() === DARK ? 'fa-solid fa-sun' : 'fa-solid fa-moon'}"></i><span>Tema</span>`;
+    btn.type = 'button';
+    btn.className = 'nav-icon-btn theme-toggle-btn';
+    btn.title = saved() === DARK ? 'Usar tema claro' : 'Usar tema escuro';
+    btn.setAttribute('aria-label', btn.title);
+    btn.innerHTML = `<i class="${saved() === DARK ? 'fa-solid fa-sun' : 'fa-solid fa-moon'}"></i>`;
     btn.onclick = () => apply(saved() === DARK ? LIGHT : DARK);
     nav.insertBefore(btn, nav.firstChild);
 }

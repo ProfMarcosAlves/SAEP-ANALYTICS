@@ -33,6 +33,34 @@ function getHeatColor(performance) {
     return                       { bg: '#bbf7d0', text: '#14532d' };
 }
 
+function setupAnalyseTabs() {
+    const tabs = document.querySelectorAll('[data-analysis-tab]');
+    const panels = document.querySelectorAll('[data-analysis-panel]');
+
+    if (!tabs.length || !panels.length) return;
+
+    tabs.forEach((tab) => {
+        if (tab.dataset.bound === 'true') return;
+
+        tab.dataset.bound = 'true';
+        tab.addEventListener('click', () => {
+            const target = tab.dataset.analysisTab;
+
+            tabs.forEach((item) => {
+                item.classList.toggle('active', item.dataset.analysisTab === target);
+            });
+
+            panels.forEach((panel) => {
+                panel.classList.toggle('active', panel.dataset.analysisPanel === target);
+            });
+
+            if (target === 'capacidades' && analyseCapChart) {
+                setTimeout(() => analyseCapChart.resize(), 50);
+            }
+        });
+    });
+}
+
 function buildAnalyseKpis(studentSummaries) {
     const total = studentSummaries.length;
     const performances = studentSummaries.map(s => Number(s.desempenho) || 0);
@@ -600,6 +628,423 @@ function renderActionPlan(studentSummaries, classroomAnalysis) {
 
 
 /* ================================================
+   BLOCO: RELATÓRIOS PEDAGÓGICOS CONSOLIDADOS
+================================================ */
+
+function escapeAnalyseHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function formatReportPercent(value) {
+    return `${Number(value || 0).toFixed(1)}%`;
+}
+
+function getItemReviewStatus(item) {
+    const taxa = Number(item.taxaAcerto) || 0;
+    if (taxa >= 90) return { label: 'Muito fácil', css: 'easy', icon: 'fa-face-smile' };
+    if (taxa <= 40) return { label: 'Muito difícil', css: 'hard', icon: 'fa-triangle-exclamation' };
+    return { label: 'Adequada', css: 'ok', icon: 'fa-circle-check' };
+}
+
+function calculateCapacityStudentAverage(capacityCode, classroomAnalysis) {
+    const performances = ApplicationState.studentSummaries
+        .map((student) => classroomAnalysis.studentCapacityPerformance[student.nome]?.[capacityCode])
+        .filter((metrics) => metrics && metrics.total > 0)
+        .map((metrics) => (metrics.acertos / metrics.total) * 100);
+
+    if (!performances.length) return 0;
+
+    const total = performances.reduce((sum, value) => sum + value, 0);
+    return Number((total / performances.length).toFixed(1));
+}
+
+function buildCapacityReportRows(classroomAnalysis) {
+    return classroomAnalysis.sortedCapacityCodes.map((capacityCode) => {
+        const metrics = classroomAnalysis.performanceByCapacity[capacityCode];
+        const performance = metrics && metrics.total > 0
+            ? Number(((metrics.acertos / metrics.total) * 100).toFixed(1))
+            : 0;
+
+        return {
+            code: capacityCode,
+            displayName: getCapacityDisplayName(capacityCode),
+            questions: metrics?.itensUnicos || 0,
+            acertos: metrics?.acertos || 0,
+            total: metrics?.total || 0,
+            performance,
+            classAverage: calculateCapacityStudentAverage(capacityCode, classroomAnalysis)
+        };
+    }).sort((a, b) => a.performance - b.performance);
+}
+
+function buildKnowledgeCapacityReportRows(classroomAnalysis) {
+    const rows = [];
+
+    Object.entries(classroomAnalysis.performanceByCapacity).forEach(([capacityCode, capacityMetrics]) => {
+        Object.entries(capacityMetrics.conhecimentos || {}).forEach(([knowledgeName, knowledgeMetrics]) => {
+            if (!knowledgeName || knowledgeName === 'Não identificado') return;
+
+            const total = Number(knowledgeMetrics.total) || 0;
+            const acertos = Number(knowledgeMetrics.acertos) || 0;
+            const performance = total > 0
+                ? Number(((acertos / total) * 100).toFixed(1))
+                : 0;
+
+            rows.push({
+                knowledgeName,
+                capacityCode,
+                capacityName: getCapacityDisplayName(capacityCode),
+                questions: Number(knowledgeMetrics.itensUnicos) || 0,
+                acertos,
+                total,
+                performance
+            });
+        });
+    });
+
+    return rows.sort((a, b) =>
+        a.capacityCode.localeCompare(b.capacityCode, undefined, { numeric: true }) ||
+        a.performance - b.performance ||
+        a.knowledgeName.localeCompare(b.knowledgeName, 'pt-BR')
+    );
+}
+
+function renderReportMetadataList(items) {
+    if (!items || !items.length) return '';
+
+    return `
+        <dl class="ap-report-meta-list">
+            ${items.map((item) => `
+                <div>
+                    <dt>${escapeAnalyseHtml(item.label)}</dt>
+                    <dd>${item.value}</dd>
+                </div>
+            `).join('')}
+        </dl>
+    `;
+}
+
+function renderReportMetricCard(icon, label, value, detail, cssClass, metadataItems) {
+    return `
+        <div class="ap-report-metric ${cssClass || ''}">
+            <i class="fa-solid ${icon}"></i>
+            <div>
+                <div class="ap-report-metric-label">${label}</div>
+                <div class="ap-report-metric-value">${value}</div>
+                <div class="ap-report-metric-detail">${detail}</div>
+                ${renderReportMetadataList(metadataItems)}
+            </div>
+        </div>
+    `;
+}
+
+function renderRankingRows(items) {
+    return items.map((item) => {
+        const status = getItemReviewStatus(item);
+        const erros = Math.max(0, item.total - item.acertos);
+
+        return `
+            <tr class="ap-items-row">
+                <td class="ap-items-td" style="font-weight:800;color:var(--text);">${escapeAnalyseHtml(item.identificador)}</td>
+                <td class="ap-items-td" style="font-weight:800;color:var(--primary);">${escapeAnalyseHtml(item.cap)}</td>
+                <td class="ap-items-td" style="max-width:220px;white-space:normal;line-height:1.35;">${escapeAnalyseHtml(item.conhecimento)}</td>
+                <td class="ap-items-td" style="text-align:center;">${item.total}</td>
+                <td class="ap-items-td" style="text-align:center;font-weight:800;color:#16a34a;">${item.acertos}</td>
+                <td class="ap-items-td" style="text-align:center;font-weight:800;color:#dc2626;">${erros}</td>
+                <td class="ap-items-td" style="text-align:center;font-weight:800;color:${getPerformanceColor(item.taxaAcerto)};">${formatReportPercent(item.taxaAcerto)}</td>
+                <td class="ap-items-td">
+                    <span class="ap-review-pill ${status.css}">
+                        <i class="fa-solid ${status.icon}"></i>${status.label}
+                    </span>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderCapacityReportRows(rows) {
+    return rows.map((row) => `
+        <tr class="ap-items-row">
+            <td class="ap-items-td" style="font-weight:800;color:var(--primary);">${escapeAnalyseHtml(row.code)}</td>
+            <td class="ap-items-td" style="white-space:normal;line-height:1.35;">${escapeAnalyseHtml(row.displayName)}</td>
+            <td class="ap-items-td" style="text-align:center;font-weight:800;">${row.questions}</td>
+            <td class="ap-items-td" style="text-align:center;font-weight:800;color:#16a34a;">${row.acertos}</td>
+            <td class="ap-items-td" style="text-align:center;">${row.total}</td>
+            <td class="ap-items-td" style="text-align:center;font-weight:800;color:${getPerformanceColor(row.performance)};">${formatReportPercent(row.performance)}</td>
+            <td class="ap-items-td" style="text-align:center;font-weight:800;color:${getPerformanceColor(row.classAverage)};">${formatReportPercent(row.classAverage)}</td>
+        </tr>
+    `).join('');
+}
+
+function renderKnowledgeCapacityReportRows(rows) {
+    return rows.map((row) => `
+        <tr class="ap-items-row">
+            <td class="ap-items-td" style="white-space:normal;line-height:1.35;font-weight:700;color:var(--text);">${escapeAnalyseHtml(row.knowledgeName)}</td>
+            <td class="ap-items-td" style="font-weight:800;color:var(--primary);" title="${escapeAnalyseHtml(row.capacityName)}">${escapeAnalyseHtml(row.capacityCode)}</td>
+            <td class="ap-items-td" style="text-align:center;font-weight:800;">${row.questions}</td>
+            <td class="ap-items-td" style="text-align:center;font-weight:800;color:#16a34a;">${row.acertos}</td>
+            <td class="ap-items-td" style="text-align:center;">${row.total}</td>
+            <td class="ap-items-td" style="text-align:center;font-weight:800;color:${getPerformanceColor(row.performance)};">${formatReportPercent(row.performance)}</td>
+        </tr>
+    `).join('');
+}
+
+function getItemsForCapacity(items, capacityCode) {
+    return items
+        .filter((item) => item.cap === capacityCode)
+        .sort((a, b) => a.taxaAcerto - b.taxaAcerto);
+}
+
+function getItemsForKnowledge(items, knowledgeName, capacityCode) {
+    return items
+        .filter((item) =>
+            item.conhecimento === knowledgeName &&
+            (!capacityCode || item.cap === capacityCode)
+        )
+        .sort((a, b) => a.taxaAcerto - b.taxaAcerto);
+}
+
+function renderMiniItemList(items, emptyText) {
+    if (!items.length) {
+        return `<span class="ap-meta-muted">${emptyText || 'Sem itens vinculados'}</span>`;
+    }
+
+    return items.slice(0, 3)
+        .map((item) => `${escapeAnalyseHtml(item.identificador)} (${formatReportPercent(item.taxaAcerto)})`)
+        .join(', ');
+}
+
+function renderMetadataExplainer(reviewItems) {
+    const easyCount = reviewItems.filter((item) => item.taxaAcerto >= 90).length;
+    const hardCount = reviewItems.filter((item) => item.taxaAcerto <= 40).length;
+
+    return `
+        <div class="ap-report-explainer">
+            <div class="ap-report-explainer-title">
+                <i class="fa-solid fa-circle-info"></i>
+                Como os metadados foram calculados
+            </div>
+            <div class="ap-report-explainer-grid">
+                <div>
+                    <b>Questões únicas</b>
+                    <span>Contagem pelo campo Identificador da planilha.</span>
+                </div>
+                <div>
+                    <b>Respostas</b>
+                    <span>Total de marcações dos alunos para aquela questão, capacidade ou conhecimento.</span>
+                </div>
+                <div>
+                    <b>Aproveitamento</b>
+                    <span>Acertos divididos pelo total de respostas.</span>
+                </div>
+                <div>
+                    <b>Revisar banco</b>
+                    <span>${hardCount} item(ns) com até 40% de acerto e ${easyCount} com 90% ou mais.</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderPedagogicalReports(classroomAnalysis, items) {
+    const container = getElementByIdOrNull('ap-pedagogicalReports');
+    if (!container) return;
+
+    if (!items.length) {
+        container.innerHTML = '<p style="color:#64748b;font-size:0.9rem;">Nenhum item disponível para gerar relatórios.</p>';
+        return;
+    }
+
+    const hardestItems = [...items].sort((a, b) => a.taxaAcerto - b.taxaAcerto).slice(0, 6);
+    const easiestItems = [...items].sort((a, b) => b.taxaAcerto - a.taxaAcerto).slice(0, 6);
+    const reviewItems = items.filter((item) => item.taxaAcerto <= 40 || item.taxaAcerto >= 90);
+    const capacityRows = buildCapacityReportRows(classroomAnalysis);
+    const knowledgeRows = buildKnowledgeCapacityReportRows(classroomAnalysis);
+    const criticalKnowledgeRows = knowledgeRows.filter((row) => row.performance < 60);
+
+    const weakestCapacity = capacityRows[0];
+    const weakestKnowledge = [...knowledgeRows].sort((a, b) => a.performance - b.performance)[0];
+    const bestKnowledge = [...knowledgeRows].sort((a, b) => b.performance - a.performance)[0];
+    const weakestCapacityItems = weakestCapacity
+        ? getItemsForCapacity(items, weakestCapacity.code)
+        : [];
+    const weakestKnowledgeItems = weakestKnowledge
+        ? getItemsForKnowledge(items, weakestKnowledge.knowledgeName, weakestKnowledge.capacityCode)
+        : [];
+    const bestKnowledgeItems = bestKnowledge
+        ? getItemsForKnowledge(items, bestKnowledge.knowledgeName, bestKnowledge.capacityCode)
+        : [];
+    const reviewItemsBySeverity = [...reviewItems].sort((a, b) => {
+        const distanceA = Math.min(Math.abs(a.taxaAcerto - 40), Math.abs(a.taxaAcerto - 90));
+        const distanceB = Math.min(Math.abs(b.taxaAcerto - 40), Math.abs(b.taxaAcerto - 90));
+        return distanceA - distanceB;
+    });
+
+    container.innerHTML = `
+        <div class="ap-report-metrics">
+            ${renderReportMetricCard(
+                'fa-layer-group',
+                'Capacidade mais crítica',
+                weakestCapacity ? weakestCapacity.code : '--',
+                weakestCapacity ? `${formatReportPercent(weakestCapacity.performance)} de acerto` : 'Sem dados',
+                'danger',
+                weakestCapacity ? [
+                    { label: 'Descrição', value: escapeAnalyseHtml(weakestCapacity.displayName) },
+                    { label: 'Questões', value: weakestCapacity.questions },
+                    { label: 'Respostas', value: weakestCapacity.total },
+                    { label: 'Itens críticos', value: renderMiniItemList(weakestCapacityItems, 'Sem itens') }
+                ] : []
+            )}
+            ${renderReportMetricCard(
+                'fa-brain',
+                'Conhecimento para intervenção',
+                weakestKnowledge ? escapeAnalyseHtml(weakestKnowledge.knowledgeName) : '--',
+                weakestKnowledge ? `${weakestKnowledge.capacityCode} · ${formatReportPercent(weakestKnowledge.performance)}` : 'Sem dados',
+                'warning',
+                weakestKnowledge ? [
+                    { label: 'Capacidade', value: `${escapeAnalyseHtml(weakestKnowledge.capacityCode)} · ${escapeAnalyseHtml(weakestKnowledge.capacityName)}` },
+                    { label: 'Questões', value: weakestKnowledge.questions },
+                    { label: 'Acertos/resp.', value: `${weakestKnowledge.acertos}/${weakestKnowledge.total}` },
+                    { label: 'Itens associados', value: renderMiniItemList(weakestKnowledgeItems, 'Sem itens') }
+                ] : []
+            )}
+            ${renderReportMetricCard(
+                'fa-medal',
+                'Melhor conhecimento',
+                bestKnowledge ? escapeAnalyseHtml(bestKnowledge.knowledgeName) : '--',
+                bestKnowledge ? `${bestKnowledge.capacityCode} · ${formatReportPercent(bestKnowledge.performance)}` : 'Sem dados',
+                'success',
+                bestKnowledge ? [
+                    { label: 'Capacidade', value: `${escapeAnalyseHtml(bestKnowledge.capacityCode)} · ${escapeAnalyseHtml(bestKnowledge.capacityName)}` },
+                    { label: 'Questões', value: bestKnowledge.questions },
+                    { label: 'Acertos/resp.', value: `${bestKnowledge.acertos}/${bestKnowledge.total}` },
+                    { label: 'Itens associados', value: renderMiniItemList(bestKnowledgeItems, 'Sem itens') }
+                ] : []
+            )}
+            ${renderReportMetricCard(
+                'fa-screwdriver-wrench',
+                'Revisar banco',
+                reviewItems.length,
+                'Itens muito fáceis ou muito difíceis',
+                'info',
+                [
+                    { label: 'Critério difícil', value: 'Até 40% de acerto' },
+                    { label: 'Critério fácil', value: '90% ou mais de acerto' },
+                    { label: 'Itens sinalizados', value: renderMiniItemList(reviewItemsBySeverity, 'Nenhum item') },
+                    { label: 'Base analisada', value: `${items.length} questões únicas` }
+                ]
+            )}
+        </div>
+
+        ${renderMetadataExplainer(reviewItems)}
+
+        <div class="ap-report-grid">
+            <div class="ap-report-panel">
+                <div class="ap-report-title">
+                    <i class="fa-solid fa-arrow-trend-down"></i>
+                    Questões com maior índice de erros
+                </div>
+                <div class="ap-table-scroll">
+                    <table class="ap-items-table">
+                        <thead>
+                            <tr>
+                                <th class="ap-items-th">Item</th>
+                                <th class="ap-items-th">Cap.</th>
+                                <th class="ap-items-th">Conhecimento</th>
+                                <th class="ap-items-th" style="text-align:center;">Resp.</th>
+                                <th class="ap-items-th" style="text-align:center;">Acertos</th>
+                                <th class="ap-items-th" style="text-align:center;">Erros</th>
+                                <th class="ap-items-th" style="text-align:center;">% Acerto</th>
+                                <th class="ap-items-th">Revisão</th>
+                            </tr>
+                        </thead>
+                        <tbody>${renderRankingRows(hardestItems)}</tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="ap-report-panel">
+                <div class="ap-report-title">
+                    <i class="fa-solid fa-arrow-trend-up"></i>
+                    Questões com maior índice de acertos
+                </div>
+                <div class="ap-table-scroll">
+                    <table class="ap-items-table">
+                        <thead>
+                            <tr>
+                                <th class="ap-items-th">Item</th>
+                                <th class="ap-items-th">Cap.</th>
+                                <th class="ap-items-th">Conhecimento</th>
+                                <th class="ap-items-th" style="text-align:center;">Resp.</th>
+                                <th class="ap-items-th" style="text-align:center;">Acertos</th>
+                                <th class="ap-items-th" style="text-align:center;">Erros</th>
+                                <th class="ap-items-th" style="text-align:center;">% Acerto</th>
+                                <th class="ap-items-th">Revisão</th>
+                            </tr>
+                        </thead>
+                        <tbody>${renderRankingRows(easiestItems)}</tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="ap-report-panel mt-6">
+            <div class="ap-report-title">
+                <i class="fa-solid fa-layer-group"></i>
+                Relatório por capacidades
+            </div>
+            <div class="ap-table-scroll">
+                <table class="ap-items-table">
+                    <thead>
+                        <tr>
+                            <th class="ap-items-th">Capacidade</th>
+                            <th class="ap-items-th">Descrição</th>
+                            <th class="ap-items-th" style="text-align:center;">Nº questões</th>
+                            <th class="ap-items-th" style="text-align:center;">Acertos</th>
+                            <th class="ap-items-th" style="text-align:center;">Respostas</th>
+                            <th class="ap-items-th" style="text-align:center;">% de acertos</th>
+                            <th class="ap-items-th" style="text-align:center;">Média turma</th>
+                        </tr>
+                    </thead>
+                    <tbody>${renderCapacityReportRows(capacityRows)}</tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="ap-report-panel mt-6">
+            <div class="ap-report-title">
+                <i class="fa-solid fa-brain"></i>
+                Capacidade x conhecimento agregado
+            </div>
+            <div class="ap-report-hint">
+                ${criticalKnowledgeRows.length} conhecimento(s) abaixo de 60% aparecem como prioridade para intervenção pedagógica.
+            </div>
+            <div class="ap-table-scroll">
+                <table class="ap-items-table">
+                    <thead>
+                        <tr>
+                            <th class="ap-items-th">Conhecimento</th>
+                            <th class="ap-items-th">Capacidade</th>
+                            <th class="ap-items-th" style="text-align:center;">Nº questões</th>
+                            <th class="ap-items-th" style="text-align:center;">Acertos</th>
+                            <th class="ap-items-th" style="text-align:center;">Respostas</th>
+                            <th class="ap-items-th" style="text-align:center;">Aproveitamento</th>
+                        </tr>
+                    </thead>
+                    <tbody>${renderKnowledgeCapacityReportRows(knowledgeRows)}</tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
+
+
+/* ================================================
    BLOCO: ANÁLISE DE ITENS SAEP
    Agrega answerRecords por identificador para
    calcular taxa de acerto e distratores.
@@ -855,6 +1300,7 @@ function initializeAnalysePage() {
 
     if (empty)   empty.style.display   = 'none';
     if (content) content.style.display = 'block';
+    setupAnalyseTabs();
 
     const { studentSummaries } = ApplicationState;
     const kpis = buildAnalyseKpis(studentSummaries);
@@ -889,6 +1335,7 @@ function initializeAnalysePage() {
     renderActionPlan(studentSummaries, classroomAnalysis);
 
     const itemsAnalysis = buildItemsAnalysis();
+    renderPedagogicalReports(classroomAnalysis, itemsAnalysis);
     renderItemsTable(itemsAnalysis);
     renderDistractors(itemsAnalysis);
 }

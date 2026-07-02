@@ -11,7 +11,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="style.css?v=20260623-1">
+  <link rel="stylesheet" href="style.css?v=20260702-3">
   <!-- Bibliotecas externas — carregadas no head para garantir disponibilidade -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
@@ -46,7 +46,7 @@
             <i class="fa-solid fa-microscope"></i>
             <span>Análise Profunda</span>
           </a>
-          <a href="ajuda.html" class="nav-link">
+          <a href="ajuda.html" class="nav-link nav-icon-link" title="Guia do Mentor" aria-label="Guia do Mentor">
             <i class="fa-solid fa-circle-question"></i>
             <span>Guia do Mentor</span>
           </a>
@@ -158,29 +158,91 @@
         </div>
       </section>
 
-      <!-- Bloco 2: Mapa de calor -->
-      <section class="saep-card section-card mt-6">
-        <div class="section-title-wrap">
-          <h2 class="section-title">
-            <i class="fa-solid fa-table-cells"></i>
-            <span>Mapa de calor — desempenho por capacidade</span>
-          </h2>
+      <section class="ap-analysis-divider">
+        <div>
+          <p class="ap-divider-eyebrow">Análise detalhada</p>
+          <h2 class="ap-divider-title">Escolha o recorte para aprofundar</h2>
         </div>
-        <div class="ap-heatmap-wrap">
-          <table class="ap-heatmap-table" id="ap-heatmapTable"></table>
-        </div>
-        <div class="ap-heatmap-legend">
-          <span>Legenda:</span>
-          <span class="ap-legend-item"><span class="ap-legend-dot" style="background:#fecaca;"></span>Crítico &lt;40%</span>
-          <span class="ap-legend-item"><span class="ap-legend-dot" style="background:#fde68a;"></span>Abaixo 40–59%</span>
-          <span class="ap-legend-item"><span class="ap-legend-dot" style="background:#bfdbfe;"></span>Adequado 60–79%</span>
-          <span class="ap-legend-item"><span class="ap-legend-dot" style="background:#bbf7d0;"></span>Excelente ≥80%</span>
+        <div class="ap-analysis-tabs" role="tablist" aria-label="Recortes da análise profunda">
+          <button type="button" class="ap-analysis-tab active" data-analysis-tab="capacidades">
+            <i class="fa-solid fa-layer-group"></i>
+            <span>Capacidades</span>
+          </button>
+          <button type="button" class="ap-analysis-tab" data-analysis-tab="conhecimentos">
+            <i class="fa-solid fa-brain"></i>
+            <span>Conhecimentos</span>
+          </button>
+          <button type="button" class="ap-analysis-tab" data-analysis-tab="correlacoes">
+            <i class="fa-solid fa-diagram-project"></i>
+            <span>Correlações</span>
+          </button>
         </div>
       </section>
 
-      <!-- Bloco 3: Conhecimentos + Gráfico de capacidades -->
-      <section class="capacity-insights-grid mt-6">
-        <div class="saep-card section-card">
+      <div class="ap-analysis-panels">
+        <section id="ap-panel-capacidades" class="ap-analysis-panel active" data-analysis-panel="capacidades">
+          <div class="ap-panel-summary">
+            <div>
+              <h3>Capacidades</h3>
+              <p>Mostra domínio por capacidade, distribuição entre alunos e agrupamentos pedagógicos.</p>
+            </div>
+            <i class="fa-solid fa-layer-group"></i>
+          </div>
+
+          <section class="saep-card section-card mt-6">
+            <div class="section-title-wrap">
+              <h2 class="section-title">
+                <i class="fa-solid fa-table-cells"></i>
+                <span>Mapa de calor — desempenho por capacidade</span>
+              </h2>
+            </div>
+            <div class="ap-heatmap-wrap">
+              <table class="ap-heatmap-table" id="ap-heatmapTable"></table>
+            </div>
+            <div class="ap-heatmap-legend">
+              <span>Legenda:</span>
+              <span class="ap-legend-item"><span class="ap-legend-dot" style="background:#fecaca;"></span>Crítico &lt;40%</span>
+              <span class="ap-legend-item"><span class="ap-legend-dot" style="background:#fde68a;"></span>Abaixo 40–59%</span>
+              <span class="ap-legend-item"><span class="ap-legend-dot" style="background:#bfdbfe;"></span>Adequado 60–79%</span>
+              <span class="ap-legend-item"><span class="ap-legend-dot" style="background:#bbf7d0;"></span>Excelente ≥80%</span>
+            </div>
+          </section>
+
+          <section class="capacity-insights-grid mt-6">
+            <div class="saep-card section-card">
+              <div class="section-title-wrap">
+                <h2 class="section-title">
+                  <i class="fa-solid fa-layer-group"></i>
+                  <span>Desempenho por capacidade</span>
+                </h2>
+              </div>
+              <div id="ap-capChartWrap" style="position:relative; height:260px;">
+                <canvas id="ap-capChart"></canvas>
+              </div>
+            </div>
+
+            <div class="saep-card section-card">
+              <div class="section-title-wrap">
+                <h2 class="section-title">
+                  <i class="fa-solid fa-people-group"></i>
+                  <span>Clusters pedagógicos — grupos por perfil</span>
+                </h2>
+              </div>
+              <div id="ap-clusterGrid" class="ap-cluster-grid"></div>
+            </div>
+          </section>
+        </section>
+
+        <section id="ap-panel-conhecimentos" class="ap-analysis-panel" data-analysis-panel="conhecimentos">
+          <div class="ap-panel-summary">
+            <div>
+              <h3>Conhecimentos</h3>
+              <p>Organiza os conhecimentos do mais crítico ao melhor para orientar reforço e retomada.</p>
+            </div>
+            <i class="fa-solid fa-brain"></i>
+          </div>
+
+          <section class="saep-card section-card mt-6">
           <div class="section-title-wrap">
             <h2 class="section-title">
               <i class="fa-solid fa-brain"></i>
@@ -188,67 +250,62 @@
             </h2>
           </div>
           <div id="ap-knowledgeList"></div>
-        </div>
+          </section>
+        </section>
 
-        <div class="saep-card section-card">
-          <div class="section-title-wrap">
-            <h2 class="section-title">
-              <i class="fa-solid fa-layer-group"></i>
-              <span>Desempenho por capacidade</span>
-            </h2>
+        <section id="ap-panel-correlacoes" class="ap-analysis-panel" data-analysis-panel="correlacoes">
+          <div class="ap-panel-summary">
+            <div>
+              <h3>Correlações</h3>
+              <p>Cruza capacidade, conhecimento, questões, distratores e plano de ação para apoiar decisões.</p>
+            </div>
+            <i class="fa-solid fa-diagram-project"></i>
           </div>
-          <div id="ap-capChartWrap" style="position:relative; height:260px;">
-            <canvas id="ap-capChart"></canvas>
-          </div>
-        </div>
-      </section>
 
-      <!-- Bloco 4: Clusters pedagógicos -->
-      <section class="saep-card section-card mt-6">
-        <div class="section-title-wrap">
-          <h2 class="section-title">
-            <i class="fa-solid fa-people-group"></i>
-            <span>Clusters pedagógicos — grupos por perfil</span>
-          </h2>
-        </div>
-        <div id="ap-clusterGrid" class="ap-cluster-grid"></div>
-      </section>
+          <section class="saep-card section-card mt-6">
+            <div class="section-title-wrap">
+              <h2 class="section-title">
+                <i class="fa-solid fa-bullseye"></i>
+                <span>Plano de ação pedagógica</span>
+              </h2>
+            </div>
+            <div id="ap-actionPlan"></div>
+          </section>
 
-      <!-- Bloco 5: Plano de ação -->
-      <section class="saep-card section-card mt-6">
-        <div class="section-title-wrap">
-          <h2 class="section-title">
-            <i class="fa-solid fa-bullseye"></i>
-            <span>Plano de ação pedagógica</span>
-          </h2>
-        </div>
-        <div id="ap-actionPlan"></div>
-      </section>
+          <section class="saep-card section-card mt-6">
+            <div class="section-title-wrap">
+              <h2 class="section-title">
+                <i class="fa-solid fa-clipboard-list"></i>
+                <span>Relatórios pedagógicos</span>
+              </h2>
+            </div>
+            <div id="ap-pedagogicalReports"></div>
+          </section>
 
-      <!-- Bloco 6: Análise de itens SAEP -->
-      <section class="saep-card section-card mt-6">
-        <div class="section-title-wrap">
-          <h2 class="section-title">
-            <i class="fa-solid fa-list-check"></i>
-            <span>Análise de itens SAEP — taxa de acerto e gabaritos</span>
-          </h2>
-        </div>
-        <div id="ap-itemsSection"></div>
-      </section>
+          <section class="saep-card section-card mt-6">
+            <div class="section-title-wrap">
+              <h2 class="section-title">
+                <i class="fa-solid fa-list-check"></i>
+                <span>Análise de itens SAEP — taxa de acerto e gabaritos</span>
+              </h2>
+            </div>
+            <div id="ap-itemsSection"></div>
+          </section>
 
-      <!-- Bloco 7: Distratores visuais -->
-      <section class="saep-card section-card mt-6">
-        <div class="section-title-wrap">
-          <h2 class="section-title">
-            <i class="fa-solid fa-magnifying-glass-chart"></i>
-            <span>Distratores — concentração de erros por alternativa</span>
-          </h2>
-        </div>
-        <p style="font-size:0.85rem; color:#64748b; margin-bottom:18px;">
-          Quando muitos alunos escolhem a mesma alternativa errada, há uma concepção equivocada específica — não falta de estudo genérica.
-        </p>
-        <div id="ap-distractorsSection" class="ap-distractor-grid"></div>
-      </section>
+          <section class="saep-card section-card mt-6">
+            <div class="section-title-wrap">
+              <h2 class="section-title">
+                <i class="fa-solid fa-magnifying-glass-chart"></i>
+                <span>Distratores — concentração de erros por alternativa</span>
+              </h2>
+            </div>
+            <p style="font-size:0.85rem; color:#64748b; margin-bottom:18px;">
+              Quando muitos alunos escolhem a mesma alternativa errada, há uma concepção equivocada específica — não falta de estudo genérica.
+            </p>
+            <div id="ap-distractorsSection" class="ap-distractor-grid"></div>
+          </section>
+        </section>
+      </div>
 
     </div>
   </main>
@@ -266,9 +323,9 @@
   <script src="js/student-viewer.js?v=20260623-1"></script>
   <script src="js/boletim-print.js?v=20260623-1"></script>
   <script src="js/pdf-service.js?v=20260623-1"></script>
-  <script src="js/analise-ui.js?v=20260623-1"></script>
+  <script src="js/analise-ui.js?v=20260702-2"></script>
   <script src="js/upload-controller.js?v=20260623-1"></script>
-  <script src="js/theme-switcher.js?v=20260623-1"></script>
+  <script src="js/theme-switcher.js?v=20260702-3"></script>
   <script src="js/app.js?v=20260623-1"></script>
 
 </body>
